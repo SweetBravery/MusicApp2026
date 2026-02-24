@@ -1,10 +1,10 @@
 package com.example.musicapp2026.domain
 
-class Song {
-    data class Song(
-        val id: String,
-        val title: String,
-        val artist: String,
-        val uri: String
-    )
-}
+data class Song(
+    val id: Long,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val duration: Long,
+    val uri: String
+)

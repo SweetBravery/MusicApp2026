@@ -30,14 +30,14 @@ class PlayBackManager(context: Context) {
     //1.x core playlist management
 
     fun setSongs(
-        songs: List<Song.Song>,
+        songs: List<Song>,
         startIndex: Int = 0,
         startPositionMs: Long = 0L
     ) {
         val mediaItems = songs.map { song ->
             MediaItem.Builder()
                 .setUri(song.uri)
-                .setMediaId(song.id)
+                .setMediaId(song.id.toString())
                 .build()
         }
 

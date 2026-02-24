@@ -1,59 +1,41 @@
 package com.example.musicapp2026.ui
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.musicapp2026.controller.MusicController
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.musicapp2026.ui.screens.MainScreen
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var musicController: MusicController
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, you can now call syncSongs()
+            // This would typically be handled by a ViewModel
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        musicController = MusicController(this)
-
-        musicController.connect {
-            // Conectado al MediaSessionService
-        }
+        checkAndRequestPermissions()
 
         setContent {
-            MusicScreen(
-                onPlay = { musicController.play() },
-                onPause = { musicController.pause() }
-            )
+            MainScreen()
         }
     }
 
-    override fun onDestroy() {
-        musicController.release()
-        super.onDestroy()
-    }
-
-    @Composable
-    fun MusicScreen(
-        onPlay: () -> Unit,
-        onPause: () -> Unit
-    ) {
-        Surface {
-            Column {
-                Button(onClick = onPlay) {
-                    Text("Play")
-                }
-
-                Button(onClick = onPause) {
-                    Text("Pause")
-                }
-            }
+    private fun checkAndRequestPermissions() {
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
         }
+        
+        permissionLauncher.launch(permission)
     }
 }
-
-
-
