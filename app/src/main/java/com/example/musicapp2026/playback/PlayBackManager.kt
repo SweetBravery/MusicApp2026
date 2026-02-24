@@ -7,6 +7,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.example.musicapp2026.domain.Song
 
 class PlayBackManager(context: Context) {
 
@@ -28,11 +29,18 @@ class PlayBackManager(context: Context) {
 
     //1.x core playlist management
 
-    fun setMediaitems(
-        mediaItems: List<MediaItem>,
+    fun setSongs(
+        songs: List<Song.Song>,
         startIndex: Int = 0,
         startPositionMs: Long = 0L
     ) {
+        val mediaItems = songs.map { song ->
+            MediaItem.Builder()
+                .setUri(song.uri)
+                .setMediaId(song.id)
+                .build()
+        }
+
         player.setMediaItems(mediaItems, startIndex, startPositionMs)
         player.prepare()
     }
