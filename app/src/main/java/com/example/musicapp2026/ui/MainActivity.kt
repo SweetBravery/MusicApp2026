@@ -6,16 +6,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import com.example.musicapp2026.ui.screens.MainScreen
+import com.example.musicapp2026.ui.viewmodel.MusicViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: MusicViewModel by viewModels()
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            // Permission granted, you can now call syncSongs()
-            // This would typically be handled by a ViewModel
+            // Permission granted
         }
     }
 
@@ -25,7 +30,7 @@ class MainActivity : ComponentActivity() {
         checkAndRequestPermissions()
 
         setContent {
-            MainScreen()
+            MainScreen(viewModel)
         }
     }
 

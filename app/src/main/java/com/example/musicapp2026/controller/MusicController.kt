@@ -2,36 +2,42 @@ package com.example.musicapp2026.controller
 
 import android.content.ComponentName
 import android.content.Context
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.google.common.util.concurrent.MoreExecutors
 import com.example.musicapp2026.service.MusicService
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 
-//Music controller implements mediacontroller. It is the une used from activities in order to communicate with the mediaSession
-//and thus the player.
 class MusicController(private val context: Context) {
-    //Creates Music Controller variable es null since it requires synchronization
+    private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
 
-    //function that connexts the Activity to the Controller
-    fun connect(onConnected: () -> Unit) {
+    fun connect(onConnected: () -> Unit, onPlaybackStateChanged: (Boolean) -> Unit) {
         val sessionToken = SessionToken(
             context,
             ComponentName(context, MusicService::class.java)
         )
 
-        //Builds the media controller
-        val controllerFuture =
-            MediaController.Builder(context, sessionToken).buildAsync()
-
-        //sets the listener for all mediacontroller calls an actions
-        controllerFuture.addListener({
-            controller = controllerFuture.get()
+        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        controllerFuture?.addListener({
+            controller = controllerFuture?.get()
+            controller?.addListener(object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    onPlaybackStateChanged(isPlaying)
+                }
+            })
             onConnected()
         }, MoreExecutors.directExecutor())
     }
 
-    //encapsulates some of the playbackmanager basic controlls.
+    fun playSong(mediaItem: MediaItem) {
+        controller?.setMediaItem(mediaItem)
+        controller?.prepare()
+        controller?.play()
+    }
+
     fun play() {
         controller?.play()
     }
