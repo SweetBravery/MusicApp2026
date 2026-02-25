@@ -6,32 +6,55 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.musicapp2026.domain.Song
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
-import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: MusicViewModel) {
+fun MainScreen(
+    viewModel: MusicViewModel,
+    onBack: () -> Unit,
+    onOpenPlayer: () -> Unit
+) {
     val songs by viewModel.songs.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val progress by viewModel.playbackProgress.collectAsState()
 
     Scaffold(
-        topBar = { TopBar() },
+        topBar = {
+            TopAppBar(
+                title = { Text("Todas las canciones", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
         bottomBar = {
             BottomPlayer(
                 currentSong = currentSong,
                 isPlaying = isPlaying,
+                progress = progress,
                 onPlayPause = { viewModel.togglePlayPause() },
                 onSkipNext = { viewModel.skipNext() },
-                onSkipPrevious = { viewModel.skipPrevious() }
+                onSkipPrevious = { viewModel.skipPrevious() },
+                onOpenPlayer = onOpenPlayer
             )
         }
     ) { paddingValues ->
@@ -49,52 +72,26 @@ fun MainScreen(viewModel: MusicViewModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TopBar() {
-    TopAppBar(
-        title = {
-            Text(
-                text = "MusicApp 2026",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = { }) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu")
-            }
-        },
-        actions = {
-            IconButton(onClick = { }) {
-                Icon(Icons.Default.Sort, contentDescription = "Sort")
-            }
-        }
-    )
-}
-
 @Composable
 fun SongItem(song: Song, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             Icons.Default.MusicNote,
             contentDescription = null,
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.primary
         )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(song.title, fontWeight = FontWeight.SemiBold)
-            Text(song.artist, style = MaterialTheme.typography.bodySmall)
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(text = song.title, fontWeight = FontWeight.Bold)
+            Text(text = song.artist, style = MaterialTheme.typography.bodySmall)
         }
-
-        Text(formatDuration(song.duration))
     }
 }
 
@@ -102,18 +99,24 @@ fun SongItem(song: Song, onClick: () -> Unit) {
 fun BottomPlayer(
     currentSong: Song?,
     isPlaying: Boolean,
+    progress: Long,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
-    onSkipPrevious: () -> Unit
+    onSkipPrevious: () -> Unit,
+    onOpenPlayer: () -> Unit
 ) {
+    val duration = currentSong?.duration ?: 1L
+    val progressFraction = (progress.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = currentSong != null, onClick = onOpenPlayer)
             .padding(8.dp)
     ) {
         LinearProgressIndicator(
-            progress = { 0.3f },
+            progress = { progressFraction },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(4.dp)
@@ -121,53 +124,34 @@ fun BottomPlayer(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = currentSong?.title ?: "Not Playing",
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = currentSong?.artist ?: "Select a song",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onSkipPrevious) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = currentSong?.title ?: "No se está reproduciendo nada",
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                Text(
+                    text = currentSong?.artist ?: "Selecciona una canción",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1
+                )
             }
-            
-            IconButton(onClick = onPlayPause) {
-                if (isPlaying) {
-                    Icon(Icons.Default.Pause, contentDescription = "Pause")
-                } else {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "Play")
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onSkipPrevious) {
+                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
                 }
-            }
-
-            IconButton(onClick = onSkipNext) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Next")
-            }
-
-            IconButton(onClick = { }) {
-                Icon(Icons.Default.Repeat, contentDescription = "Repeat")
+                IconButton(onClick = onPlayPause) {
+                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play/Pause")
+                }
+                IconButton(onClick = onSkipNext) {
+                    Icon(Icons.Default.SkipNext, contentDescription = "Next")
+                }
             }
         }
     }
-}
-
-private fun formatDuration(durationMs: Long): String {
-    val totalSeconds = durationMs / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 }

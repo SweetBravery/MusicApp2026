@@ -11,7 +11,9 @@ fun SongEntity.toDomain(): Song {
         artist = artist,
         album = album,
         duration = duration,
-        uri = uri
+        uri = uri,
+        playCount = playCount,
+        lastPlayed = lastPlayed
     )
 }
 
@@ -22,6 +24,8 @@ fun Song.toEntity(): SongEntity {
         artist = this.artist,
         album = this.album,
         duration = this.duration,
-        uri = this.uri
+        uri = this.uri,
+        playCount = this.playCount,
+        lastPlayed = this.lastPlayed
     )
 }

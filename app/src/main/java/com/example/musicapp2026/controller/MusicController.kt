@@ -14,7 +14,17 @@ class MusicController(private val context: Context) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
 
-    fun connect(onConnected: () -> Unit, onPlaybackStateChanged: (Boolean) -> Unit) {
+    val currentPosition: Long
+        get() = controller?.currentPosition ?: 0L
+
+    val duration: Long
+        get() = controller?.duration ?: 0L
+
+    fun connect(
+        onConnected: () -> Unit,
+        onPlaybackStateChanged: (Boolean) -> Unit,
+        onMediaItemChanged: (MediaItem?) -> Unit
+    ) {
         val sessionToken = SessionToken(
             context,
             ComponentName(context, MusicService::class.java)
@@ -27,6 +37,11 @@ class MusicController(private val context: Context) {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     onPlaybackStateChanged(isPlaying)
                 }
+
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    super.onMediaItemTransition(mediaItem, reason)
+                    onMediaItemChanged(mediaItem)
+                }
             })
             onConnected()
         }, MoreExecutors.directExecutor())
@@ -34,6 +49,12 @@ class MusicController(private val context: Context) {
 
     fun playSong(mediaItem: MediaItem) {
         controller?.setMediaItem(mediaItem)
+        controller?.prepare()
+        controller?.play()
+    }
+
+    fun setPlaylistAndPlay(mediaItems: List<MediaItem>, startIndex: Int) {
+        controller?.setMediaItems(mediaItems, startIndex, 0L)
         controller?.prepare()
         controller?.play()
     }
@@ -52,6 +73,10 @@ class MusicController(private val context: Context) {
 
     fun skipPrevious() {
         controller?.seekToPrevious()
+    }
+
+    fun seekTo(position: Long) {
+        controller?.seekTo(position)
     }
 
     fun release() {

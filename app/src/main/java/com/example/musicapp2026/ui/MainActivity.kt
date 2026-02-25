@@ -7,7 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.runtime.*
 import com.example.musicapp2026.ui.screens.MainScreen
+import com.example.musicapp2026.ui.screens.SongDetailScreen
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -30,7 +32,20 @@ class MainActivity : ComponentActivity() {
         checkAndRequestPermissions()
 
         setContent {
-            MainScreen(viewModel)
+            var showDetail by remember { mutableStateOf(false) }
+
+            if (showDetail) {
+                SongDetailScreen(
+                    viewModel = viewModel,
+                    onBack = { showDetail = false }
+                )
+            } else {
+                MainScreen(
+                    viewModel = viewModel,
+                    onBack = { finish() },
+                    onOpenPlayer = { showDetail = true }
+                )
+            }
         }
     }
 

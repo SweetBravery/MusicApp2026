@@ -2,80 +2,74 @@ package com.example.musicapp2026.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
-import com.example.musicapp2026.controller.MusicController
 import com.example.musicapp2026.domain.Song
-import com.example.musicapp2026.domain.usecase.GetAllSongsUseCase
-import com.example.musicapp2026.domain.usecase.SyncSongsUseCase
+import com.example.musicapp2026.domain.repository.PlaylistRepository
+import com.example.musicapp2026.domain.usecase.GetAllPlaylistsUseCase
+import com.example.musicapp2026.service.MusicServiceConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MusicViewModel @Inject constructor(
-    private val getAllSongsUseCase: GetAllSongsUseCase,
-    private val syncSongsUseCase: SyncSongsUseCase,
-    private val musicController: MusicController
+    private val musicServiceConnection: MusicServiceConnection,
+    private val getAllPlaylistsUseCase: GetAllPlaylistsUseCase,
+    private val playlistRepository: PlaylistRepository
 ) : ViewModel() {
 
-    private val _songs = MutableStateFlow<List<Song>>(emptyList())
-    val songs = _songs.asStateFlow()
+    val songs: StateFlow<List<Song>> = musicServiceConnection.allSongs
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    private val _currentSong = MutableStateFlow<Song?>(null)
-    val currentSong = _currentSong.asStateFlow()
-
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying = _isPlaying.asStateFlow()
-
-    init {
-        musicController.connect(
-            onConnected = { /* Handle connection */ },
-            onPlaybackStateChanged = { isPlaying ->
-                _isPlaying.value = isPlaying
+    val playlists: StateFlow<List<PlaylistUiModel>> = getAllPlaylistsUseCase()
+        .combine(songs) { playlistList, allSongsList ->
+            if (playlistList.isEmpty()) {
+                viewModelScope.launch {
+                    playlistRepository.createDefaultPlaylist()
+                }
             }
-        )
-        loadMusic()
-    }
-
-    private fun loadMusic() {
-        viewModelScope.launch {
-            syncSongsUseCase()
-            _songs.value = getAllSongsUseCase()
+            playlistList.map { playlist ->
+                PlaylistUiModel(
+                    id = playlist.id,
+                    name = playlist.name,
+                    count = if (playlist.id == 1L) allSongsList.size else playlist.songs.size
+                )
+            }
         }
-    }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    val currentSong: StateFlow<Song?> = musicServiceConnection.currentSong
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    val isPlaying: StateFlow<Boolean> = musicServiceConnection.isPlaying
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
+
+    val playbackProgress: StateFlow<Long> = musicServiceConnection.playbackProgress
+        .stateIn(viewModelScope, SharingStarted.Lazily, 0L)
 
     fun playSong(song: Song) {
-        _currentSong.value = song
-        val mediaItem = MediaItem.Builder()
-            .setMediaId(song.id.toString())
-            .setUri(song.uri)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(song.title)
-                    .setArtist(song.artist)
-                    .setAlbumTitle(song.album)
-                    .build()
-            )
-            .build()
-        musicController.playSong(mediaItem)
+        val allSongsList = songs.value
+        val startIndex = allSongsList.indexOfFirst { it.id == song.id }
+        if (startIndex != -1) {
+            musicServiceConnection.playPlaylist(allSongsList, startIndex)
+        } else {
+            musicServiceConnection.playSong(song)
+        }
     }
 
     fun togglePlayPause() {
-        if (_isPlaying.value) {
-            musicController.pause()
-        } else {
-            musicController.play()
-        }
+        musicServiceConnection.togglePlayPause()
     }
 
-    fun skipNext() = musicController.skipNext()
-    fun skipPrevious() = musicController.skipPrevious()
+    fun skipNext() {
+        musicServiceConnection.skipNext()
+    }
 
-    override fun onCleared() {
-        super.onCleared()
-        musicController.release()
+    fun skipPrevious() {
+        musicServiceConnection.skipPrevious()
+    }
+
+    fun seekTo(position: Long) {
+        musicServiceConnection.seekTo(position)
     }
 }

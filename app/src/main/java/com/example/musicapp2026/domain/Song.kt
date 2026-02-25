@@ -6,5 +6,7 @@ data class Song(
     val artist: String,
     val album: String,
     val duration: Long,
-    val uri: String
+    val uri: String,
+    val playCount: Int = 0,
+    val lastPlayed: Long = 0L
 )

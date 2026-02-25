@@ -1,14 +1,27 @@
 package com.example.musicapp2026.data.repository
 
 import com.example.musicapp2026.data.dao.PlaylistDao
+import com.example.musicapp2026.data.local.PlaylistEntity
 import com.example.musicapp2026.data.mapper.toDomain
 import com.example.musicapp2026.domain.Playlist
 import com.example.musicapp2026.domain.repository.PlaylistRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class PlaylistRepositoryImpl(
     private val dao: PlaylistDao
 ) : PlaylistRepository {
+    override fun getAllPlaylists(): Flow<List<Playlist>> {
+        return dao.getAllPlaylistsWithSongs().map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
     override suspend fun getPlaylistWithSongs(id: Long): Playlist {
         return dao.getPlaylistWithSongs(id).toDomain()
+    }
+
+    override suspend fun createDefaultPlaylist() {
+        dao.insertPlaylist(PlaylistEntity(1L, "Todas las canciones"))
     }
 }

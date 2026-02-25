@@ -21,6 +21,14 @@ class SongRepositoryImpl(
         return dao.getSongById(id)?.toDomain()
     }
 
+    override suspend fun getRecentlyPlayed(): List<Song> {
+        return dao.getRecentlyPlayed().map { it.toDomain() }
+    }
+
+    override suspend fun getMostPlayed(): List<Song> {
+        return dao.getMostPlayed().map { it.toDomain() }
+    }
+
     override suspend fun insertSongs(songs: List<Song>) {
         dao.insertSongs(
             songs.map { it.toEntity() }
@@ -30,5 +38,9 @@ class SongRepositoryImpl(
     override suspend fun syncSongs() {
         val localSongs = localDataSource.fetchLocalSongs()
         insertSongs(localSongs)
+    }
+
+    override suspend fun updatePlaybackStats(id: Long) {
+        dao.updatePlaybackStats(id, System.currentTimeMillis())
     }
 }

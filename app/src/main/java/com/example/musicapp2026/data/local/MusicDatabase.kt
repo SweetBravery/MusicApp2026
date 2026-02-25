@@ -11,7 +11,7 @@ import com.example.musicapp2026.data.dao.SongDao
         PlaylistEntity::class,
         PlaylistSongCrossRef::class
     ],
-    version = 1,
+    version = 3, // Increased version from 2 to 3
     exportSchema = false
 )
 abstract class MusicDatabase : RoomDatabase() {

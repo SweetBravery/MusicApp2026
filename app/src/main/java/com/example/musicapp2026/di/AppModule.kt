@@ -11,9 +11,7 @@ import com.example.musicapp2026.data.repository.PlaylistRepositoryImpl
 import com.example.musicapp2026.data.repository.SongRepositoryImpl
 import com.example.musicapp2026.domain.repository.PlaylistRepository
 import com.example.musicapp2026.domain.repository.SongRepository
-import com.example.musicapp2026.domain.usecase.GetAllSongsUseCase
-import com.example.musicapp2026.domain.usecase.GetPlaylistUseCase
-import com.example.musicapp2026.domain.usecase.SyncSongsUseCase
+import com.example.musicapp2026.domain.usecase.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,7 +30,9 @@ object AppModule {
             context,
             MusicDatabase::class.java,
             MusicDatabase.DATABASE_NAME
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides
@@ -72,6 +72,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideGetAllPlaylistsUseCase(repository: PlaylistRepository): GetAllPlaylistsUseCase {
+        return GetAllPlaylistsUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
     fun provideGetPlaylistUseCase(repository: PlaylistRepository): GetPlaylistUseCase {
         return GetPlaylistUseCase(repository)
     }
@@ -80,6 +86,18 @@ object AppModule {
     @Singleton
     fun provideSyncSongsUseCase(repository: SongRepository): SyncSongsUseCase {
         return SyncSongsUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetRecentlyPlayedUseCase(repository: SongRepository): GetRecentlyPlayedUseCase {
+        return GetRecentlyPlayedUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetMostPlayedUseCase(repository: SongRepository): GetMostPlayedUseCase {
+        return GetMostPlayedUseCase(repository)
     }
 
     @Provides
