@@ -1,6 +1,7 @@
 package com.example.musicapp2026.ui.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -18,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 import com.example.musicapp2026.ui.viewmodel.PlaylistUiModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistScreen(
     viewModel: MusicViewModel,
@@ -33,6 +34,7 @@ fun PlaylistScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
+    var playlistForMenu by remember { mutableStateOf<PlaylistUiModel?>(null) }
 
     val filteredPlaylists = if (searchText.isBlank()) {
         playlists
@@ -89,8 +91,27 @@ fun PlaylistScreen(
             modifier = Modifier.padding(paddingValues)
         ) {
             items(filteredPlaylists) { playlist ->
-                PlaylistCard(playlist) {
-                    onPlaylistClick(playlist)
+                Box {
+                    PlaylistCard(
+                        playlist = playlist,
+                        modifier = Modifier.combinedClickable(
+                            onClick = { onPlaylistClick(playlist) },
+                            onLongClick = { playlistForMenu = playlist }
+                        )
+                    )
+                    DropdownMenu(
+                        expanded = playlistForMenu == playlist,
+                        onDismissRequest = { playlistForMenu = null }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Info") },
+                            onClick = { /* TODO */ playlistForMenu = null }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Edit Image") },
+                            onClick = { /* TODO */ playlistForMenu = null }
+                        )
+                    }
                 }
             }
         }
@@ -98,12 +119,11 @@ fun PlaylistScreen(
 }
 
 @Composable
-fun PlaylistCard(playlist: PlaylistUiModel, onClick: () -> Unit) {
+fun PlaylistCard(playlist: PlaylistUiModel, modifier: Modifier = Modifier) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(150.dp)
-            .clickable(onClick = onClick),
+            .height(150.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(

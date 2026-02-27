@@ -7,8 +7,6 @@ import com.example.musicapp2026.data.dao.PlaylistDao
 import com.example.musicapp2026.data.dao.SongDao
 import com.example.musicapp2026.data.datasource.LocalMusicDataSource
 import com.example.musicapp2026.data.local.MusicDatabase
-import com.example.musicapp2026.data.repository.PlaylistRepositoryImpl
-import com.example.musicapp2026.data.repository.SongRepositoryImpl
 import com.example.musicapp2026.domain.repository.PlaylistRepository
 import com.example.musicapp2026.domain.repository.SongRepository
 import com.example.musicapp2026.domain.usecase.*
@@ -47,21 +45,6 @@ object AppModule {
     @Singleton
     fun provideLocalMusicDataSource(@ApplicationContext context: Context): LocalMusicDataSource {
         return LocalMusicDataSource(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideSongRepository(
-        dao: SongDao,
-        localDataSource: LocalMusicDataSource
-    ): SongRepository {
-        return SongRepositoryImpl(dao, localDataSource)
-    }
-
-    @Provides
-    @Singleton
-    fun providePlaylistRepository(dao: PlaylistDao): PlaylistRepository {
-        return PlaylistRepositoryImpl(dao)
     }
 
     @Provides

@@ -34,6 +34,7 @@ class PlaylistActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.PlaylistGrid) }
+                    val playlists by viewModel.playlists.collectAsState()
 
                     BackHandler(enabled = currentScreen != Screen.PlaylistGrid) {
                         currentScreen = when (currentScreen) {
@@ -49,7 +50,7 @@ class PlaylistActivity : ComponentActivity() {
                             PlaylistScreen(
                                 viewModel = viewModel,
                                 onPlaylistClick = { playlist ->
-                                    currentScreen = Screen.SongList(playlist)
+                                    currentScreen = Screen.SongList(playlist.id)
                                 },
                                 onCreatePlaylistClick = {
                                     currentScreen = Screen.CreatePlaylist
@@ -60,13 +61,16 @@ class PlaylistActivity : ComponentActivity() {
                             )
                         }
                         is Screen.SongList -> {
-                            MainScreen(
-                                viewModel = viewModel,
-                                title = screen.playlist.name,
-                                songs = screen.playlist.songs,
-                                onBack = { currentScreen = Screen.PlaylistGrid },
-                                onOpenPlayer = { currentScreen = Screen.SongDetail }
-                            )
+                            val playlist = playlists.find { it.id == screen.playlistId }
+                            if (playlist != null) {
+                                MainScreen(
+                                    viewModel = viewModel,
+                                    title = playlist.name,
+                                    songs = playlist.songs,
+                                    onBack = { currentScreen = Screen.PlaylistGrid },
+                                    onOpenPlayer = { currentScreen = Screen.SongDetail }
+                                )
+                            }
                         }
                         Screen.SongDetail -> {
                             SongDetailScreen(
@@ -96,7 +100,7 @@ class PlaylistActivity : ComponentActivity() {
 
 sealed class Screen {
     data object PlaylistGrid : Screen()
-    data class SongList(val playlist: PlaylistUiModel) : Screen()
+    data class SongList(val playlistId: Long) : Screen()
     data object SongDetail : Screen()
     data object CreatePlaylist : Screen()
 }

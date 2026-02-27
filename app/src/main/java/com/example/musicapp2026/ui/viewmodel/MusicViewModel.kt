@@ -78,4 +78,8 @@ class MusicViewModel @Inject constructor(
             playlistRepository.createPlaylistWithSongs(name, songIds)
         }
     }
+
+    fun updateSong(song: Song) {
+        musicServiceConnection.updateSong(song)
+    }
 }

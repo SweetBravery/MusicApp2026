@@ -6,6 +6,7 @@ import com.example.musicapp2026.controller.MusicController
 import com.example.musicapp2026.domain.Song
 import com.example.musicapp2026.domain.usecase.GetAllSongsUseCase
 import com.example.musicapp2026.domain.usecase.SyncSongsUseCase
+import com.example.musicapp2026.domain.usecase.UpdateSongUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -17,6 +18,7 @@ class MusicServiceConnection @Inject constructor(
     @ApplicationContext private val context: Context,
     private val getAllSongsUseCase: GetAllSongsUseCase,
     private val syncSongsUseCase: SyncSongsUseCase,
+    private val updateSongUseCase: UpdateSongUseCase,
     private val musicController: MusicController
 ) {
     private val _allSongs = MutableStateFlow<List<Song>>(emptyList())
@@ -92,4 +94,11 @@ class MusicServiceConnection @Inject constructor(
     fun skipNext() = musicController.skipNext()
     fun skipPrevious() = musicController.skipPrevious()
     fun seekTo(position: Long) = musicController.seekTo(position)
+
+    fun updateSong(song: Song) {
+        connectionScope.launch {
+            updateSongUseCase(song)
+            loadSongs() // Refresh the list
+        }
+    }
 }

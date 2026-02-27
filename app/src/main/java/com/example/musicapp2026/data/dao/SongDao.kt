@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.musicapp2026.data.local.SongEntity
 
 //dao communicates between the repository and the entities
@@ -24,6 +25,9 @@ interface SongDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSongs(songs: List<SongEntity>)
+
+    @Update
+    suspend fun updateSong(song: SongEntity)
 
     @Query("UPDATE songs SET playCount = playCount + 1, lastPlayed = :timestamp WHERE id = :id")
     suspend fun updatePlaybackStats(id: Long, timestamp: Long)

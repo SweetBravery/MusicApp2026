@@ -1,7 +1,9 @@
 package com.example.musicapp2026.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,14 +22,15 @@ import androidx.compose.ui.unit.sp
 import com.example.musicapp2026.domain.Song
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(
     viewModel: MusicViewModel,
     title: String = "Todas las canciones",
     songs: List<Song>,
     onBack: () -> Unit,
-    onOpenPlayer: () -> Unit
+    onOpenPlayer: () -> Unit,
+    onSongUpdated: () -> Unit = {}
 ) {
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -35,6 +38,9 @@ fun MainScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
+    var songForMenu by remember { mutableStateOf<Song?>(null) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var songToEdit by remember { mutableStateOf<Song?>(null) }
 
     val filteredSongs = if (searchText.isBlank()) {
         songs
@@ -92,20 +98,105 @@ fun MainScreen(
                 .fillMaxSize()
         ) {
             items(filteredSongs) { song ->
-                SongItem(song, onClick = {
-                    viewModel.playSong(song, songs)
-                })
+                Box {
+                    SongItem(
+                        song = song,
+                        modifier = Modifier.combinedClickable(
+                            onClick = { viewModel.playSong(song, songs) },
+                            onLongClick = { songForMenu = song }
+                        )
+                    )
+                    DropdownMenu(
+                        expanded = songForMenu == song,
+                        onDismissRequest = { songForMenu = null }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Info") },
+                            onClick = {
+                                songToEdit = song
+                                showEditDialog = true
+                                songForMenu = null
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Edit Image") },
+                            onClick = { /* TODO */ songForMenu = null }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add to playlist") },
+                            onClick = { /* TODO */ songForMenu = null }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = { /* TODO */ songForMenu = null }
+                        )
+                    }
+                }
             }
         }
+    }
+    if (showEditDialog && songToEdit != null) {
+        EditSongDialog(
+            song = songToEdit!!,
+            onDismiss = { showEditDialog = false },
+            onSave = { updatedSong ->
+                viewModel.updateSong(updatedSong)
+                showEditDialog = false
+                onSongUpdated()
+            }
+        )
     }
 }
 
 @Composable
-fun SongItem(song: Song, onClick: () -> Unit) {
+fun EditSongDialog(
+    song: Song,
+    onDismiss: () -> Unit,
+    onSave: (Song) -> Unit
+) {
+    var title by remember { mutableStateOf(song.title) }
+    var artist by remember { mutableStateOf(song.artist) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Song Info") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = artist,
+                    onValueChange = { artist = it },
+                    label = { Text("Artist") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val updatedSong = song.copy(title = title, artist = artist)
+                onSave(updatedSong)
+            }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+
+@Composable
+fun SongItem(song: Song, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

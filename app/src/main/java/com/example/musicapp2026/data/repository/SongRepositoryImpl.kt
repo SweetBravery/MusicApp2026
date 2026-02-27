@@ -37,10 +37,16 @@ class SongRepositoryImpl(
 
     override suspend fun syncSongs() {
         val localSongs = localDataSource.fetchLocalSongs()
-        insertSongs(localSongs)
+        val existingSongs = getAllSongs().map { it.id }
+        val newSongs = localSongs.filter { it.id !in existingSongs }
+        insertSongs(newSongs)
     }
 
     override suspend fun updatePlaybackStats(id: Long) {
         dao.updatePlaybackStats(id, System.currentTimeMillis())
+    }
+
+    override suspend fun updateSong(song: Song) {
+        dao.updateSong(song.toEntity())
     }
 }

@@ -10,4 +10,5 @@ interface SongRepository {
     suspend fun insertSongs(songs: List<Song>)
     suspend fun syncSongs()
     suspend fun updatePlaybackStats(id: Long)
+    suspend fun updateSong(song: Song)
 }
