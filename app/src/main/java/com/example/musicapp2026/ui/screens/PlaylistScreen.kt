@@ -7,10 +7,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,14 +22,62 @@ import com.example.musicapp2026.ui.viewmodel.PlaylistUiModel
 @Composable
 fun PlaylistScreen(
     viewModel: MusicViewModel,
-    onPlaylistClick: (PlaylistUiModel) -> Unit
+    onPlaylistClick: (PlaylistUiModel) -> Unit,
+    onCreatePlaylistClick: () -> Unit,
+    onOpenPlayer: () -> Unit
 ) {
     val playlists by viewModel.playlists.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val progress by viewModel.playbackProgress.collectAsState()
+
+    var showMenu by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+
+    val filteredPlaylists = if (searchText.isBlank()) {
+        playlists
+    } else {
+        playlists.filter { it.name.contains(searchText, ignoreCase = true) }
+    }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Mis Listas", fontWeight = FontWeight.Bold) }
+                title = { Text("Mis Listas", fontWeight = FontWeight.Bold) },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = !showMenu }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            OutlinedTextField(
+                                value = searchText,
+                                onValueChange = { searchText = it },
+                                label = { Text("Search") },
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onCreatePlaylistClick) {
+                Icon(Icons.Default.Add, contentDescription = "Crear Playlist")
+            }
+        },
+        bottomBar = {
+            BottomPlayer(
+                currentSong = currentSong,
+                isPlaying = isPlaying,
+                progress = progress,
+                onPlayPause = { viewModel.togglePlayPause() },
+                onSkipNext = { viewModel.skipNext() },
+                onSkipPrevious = { viewModel.skipPrevious() },
+                onOpenPlayer = onOpenPlayer
             )
         }
     ) { paddingValues ->
@@ -40,7 +88,7 @@ fun PlaylistScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(paddingValues)
         ) {
-            items(playlists) { playlist ->
+            items(filteredPlaylists) { playlist ->
                 PlaylistCard(playlist) {
                     onPlaylistClick(playlist)
                 }

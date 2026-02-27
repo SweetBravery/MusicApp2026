@@ -32,7 +32,8 @@ class MusicViewModel @Inject constructor(
                 PlaylistUiModel(
                     id = playlist.id,
                     name = playlist.name,
-                    count = if (playlist.id == 1L) allSongsList.size else playlist.songs.size
+                    count = if (playlist.id == 1L) allSongsList.size else playlist.songs.size,
+                    songs = if (playlist.id == 1L) allSongsList else playlist.songs
                 )
             }
         }
@@ -47,11 +48,10 @@ class MusicViewModel @Inject constructor(
     val playbackProgress: StateFlow<Long> = musicServiceConnection.playbackProgress
         .stateIn(viewModelScope, SharingStarted.Lazily, 0L)
 
-    fun playSong(song: Song) {
-        val allSongsList = songs.value
-        val startIndex = allSongsList.indexOfFirst { it.id == song.id }
+    fun playSong(song: Song, playlistSongs: List<Song> = songs.value) {
+        val startIndex = playlistSongs.indexOfFirst { it.id == song.id }
         if (startIndex != -1) {
-            musicServiceConnection.playPlaylist(allSongsList, startIndex)
+            musicServiceConnection.playPlaylist(playlistSongs, startIndex)
         } else {
             musicServiceConnection.playSong(song)
         }
@@ -71,5 +71,11 @@ class MusicViewModel @Inject constructor(
 
     fun seekTo(position: Long) {
         musicServiceConnection.seekTo(position)
+    }
+
+    fun createPlaylist(name: String, songIds: List<Long>) {
+        viewModelScope.launch {
+            playlistRepository.createPlaylistWithSongs(name, songIds)
+        }
     }
 }

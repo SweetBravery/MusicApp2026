@@ -2,6 +2,7 @@ package com.example.musicapp2026.data.repository
 
 import com.example.musicapp2026.data.dao.PlaylistDao
 import com.example.musicapp2026.data.local.PlaylistEntity
+import com.example.musicapp2026.data.local.PlaylistSongCrossRef
 import com.example.musicapp2026.data.mapper.toDomain
 import com.example.musicapp2026.domain.Playlist
 import com.example.musicapp2026.domain.repository.PlaylistRepository
@@ -23,5 +24,13 @@ class PlaylistRepositoryImpl(
 
     override suspend fun createDefaultPlaylist() {
         dao.insertPlaylist(PlaylistEntity(1L, "Todas las canciones"))
+    }
+
+    override suspend fun createPlaylistWithSongs(name: String, songIds: List<Long>) {
+        val playlistId = System.currentTimeMillis()
+        dao.insertPlaylist(PlaylistEntity(playlistId, name))
+        songIds.forEach { songId ->
+            dao.insertPlaylistSongCrossRef(PlaylistSongCrossRef(playlistId, songId))
+        }
     }
 }

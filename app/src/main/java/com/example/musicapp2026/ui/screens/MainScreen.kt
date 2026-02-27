@@ -7,17 +7,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.musicapp2026.domain.Song
@@ -27,21 +24,52 @@ import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 @Composable
 fun MainScreen(
     viewModel: MusicViewModel,
+    title: String = "Todas las canciones",
+    songs: List<Song>,
     onBack: () -> Unit,
     onOpenPlayer: () -> Unit
 ) {
-    val songs by viewModel.songs.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val progress by viewModel.playbackProgress.collectAsState()
 
+    var showMenu by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+
+    val filteredSongs = if (searchText.isBlank()) {
+        songs
+    } else {
+        songs.filter {
+            it.title.contains(searchText, ignoreCase = true) ||
+                    it.artist.contains(searchText, ignoreCase = true)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Todas las canciones", fontWeight = FontWeight.Bold) },
+                title = { Text(title, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = !showMenu }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            OutlinedTextField(
+                                value = searchText,
+                                onValueChange = { searchText = it },
+                                label = { Text("Search") },
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                     }
                 }
             )
@@ -63,9 +91,9 @@ fun MainScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            items(songs) { song ->
+            items(filteredSongs) { song ->
                 SongItem(song, onClick = {
-                    viewModel.playSong(song)
+                    viewModel.playSong(song, songs)
                 })
             }
         }
@@ -108,48 +136,91 @@ fun BottomPlayer(
     val duration = currentSong?.duration ?: 1L
     val progressFraction = (progress.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
 
-    Column(
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 8.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(enabled = currentSong != null, onClick = onOpenPlayer)
-            .padding(8.dp)
     ) {
-        LinearProgressIndicator(
-            progress = { progressFraction },
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            LinearProgressIndicator(
+                progress = { progressFraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = currentSong?.title ?: "No se está reproduciendo nada",
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    fontSize = 18.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = currentSong?.artist ?: "Selecciona una canción",
                     style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onSkipPrevious) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onSkipPrevious,
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Icon(
+                        Icons.Default.SkipPrevious,
+                        contentDescription = "Previous",
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
-                IconButton(onClick = onPlayPause) {
-                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play/Pause")
+
+                FilledIconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(72.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        modifier = Modifier.size(44.dp)
+                    )
                 }
-                IconButton(onClick = onSkipNext) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next")
+
+                IconButton(
+                    onClick = onSkipNext,
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Icon(
+                        Icons.Default.SkipNext,
+                        contentDescription = "Next",
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
             }
         }

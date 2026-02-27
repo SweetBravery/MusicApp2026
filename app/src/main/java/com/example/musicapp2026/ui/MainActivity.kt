@@ -5,9 +5,14 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import com.example.musicapp2026.ui.screens.MainScreen
 import com.example.musicapp2026.ui.screens.SongDetailScreen
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
@@ -28,23 +33,33 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        enableEdgeToEdge()
+        
         checkAndRequestPermissions()
 
         setContent {
-            var showDetail by remember { mutableStateOf(false) }
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    var showDetail by remember { mutableStateOf(false) }
+                    val songs by viewModel.songs.collectAsState()
 
-            if (showDetail) {
-                SongDetailScreen(
-                    viewModel = viewModel,
-                    onBack = { showDetail = false }
-                )
-            } else {
-                MainScreen(
-                    viewModel = viewModel,
-                    onBack = { finish() },
-                    onOpenPlayer = { showDetail = true }
-                )
+                    if (showDetail) {
+                        SongDetailScreen(
+                            viewModel = viewModel,
+                            onBack = { showDetail = false }
+                        )
+                    } else {
+                        MainScreen(
+                            viewModel = viewModel,
+                            songs = songs,
+                            onBack = { finish() },
+                            onOpenPlayer = { showDetail = true }
+                        )
+                    }
+                }
             }
         }
     }

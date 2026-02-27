@@ -7,4 +7,5 @@ interface PlaylistRepository {
     fun getAllPlaylists(): Flow<List<Playlist>>
     suspend fun getPlaylistWithSongs(id: Long): Playlist
     suspend fun createDefaultPlaylist()
+    suspend fun createPlaylistWithSongs(name: String, songIds: List<Long>)
 }

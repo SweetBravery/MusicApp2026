@@ -4,13 +4,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import com.example.musicapp2026.ui.screens.CreatePlaylistScreen
 import com.example.musicapp2026.ui.screens.MainScreen
 import com.example.musicapp2026.ui.screens.PlaylistScreen
 import com.example.musicapp2026.ui.screens.SongDetailScreen
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
+import com.example.musicapp2026.ui.viewmodel.PlaylistUiModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -20,39 +25,68 @@ class PlaylistActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         setContent {
-            var currentScreen by remember { mutableStateOf<Screen>(Screen.PlaylistGrid) }
-
             MaterialTheme {
-                BackHandler(enabled = currentScreen != Screen.PlaylistGrid) {
-                    currentScreen = when (currentScreen) {
-                        Screen.SongList -> Screen.PlaylistGrid
-                        Screen.SongDetail -> Screen.SongList
-                        else -> Screen.PlaylistGrid
-                    }
-                }
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    var currentScreen by remember { mutableStateOf<Screen>(Screen.PlaylistGrid) }
 
-                when (currentScreen) {
-                    Screen.PlaylistGrid -> {
-                        PlaylistScreen(viewModel) { playlist ->
-                            if (playlist.id == 1L) { // "Todas las canciones"
-                                currentScreen = Screen.SongList
-                            }
+                    BackHandler(enabled = currentScreen != Screen.PlaylistGrid) {
+                        currentScreen = when (currentScreen) {
+                            is Screen.SongList -> Screen.PlaylistGrid
+                            Screen.SongDetail -> Screen.PlaylistGrid
+                            Screen.CreatePlaylist -> Screen.PlaylistGrid
+                            else -> Screen.PlaylistGrid
                         }
                     }
-                    Screen.SongList -> {
-                        MainScreen(
-                            viewModel = viewModel,
-                            onBack = { currentScreen = Screen.PlaylistGrid },
-                            onOpenPlayer = { currentScreen = Screen.SongDetail }
-                        )
-                    }
-                    Screen.SongDetail -> {
-                        SongDetailScreen(
-                            viewModel = viewModel,
-                            onBack = { currentScreen = Screen.SongList }
-                        )
+
+                    when (val screen = currentScreen) {
+                        Screen.PlaylistGrid -> {
+                            PlaylistScreen(
+                                viewModel = viewModel,
+                                onPlaylistClick = { playlist ->
+                                    currentScreen = Screen.SongList(playlist)
+                                },
+                                onCreatePlaylistClick = {
+                                    currentScreen = Screen.CreatePlaylist
+                                },
+                                onOpenPlayer = {
+                                    currentScreen = Screen.SongDetail
+                                }
+                            )
+                        }
+                        is Screen.SongList -> {
+                            MainScreen(
+                                viewModel = viewModel,
+                                title = screen.playlist.name,
+                                songs = screen.playlist.songs,
+                                onBack = { currentScreen = Screen.PlaylistGrid },
+                                onOpenPlayer = { currentScreen = Screen.SongDetail }
+                            )
+                        }
+                        Screen.SongDetail -> {
+                            SongDetailScreen(
+                                viewModel = viewModel,
+                                onBack = {
+                                    currentScreen = Screen.PlaylistGrid
+                                }
+                            )
+                        }
+                        Screen.CreatePlaylist -> {
+                            CreatePlaylistScreen(
+                                viewModel = viewModel,
+                                onBack = { currentScreen = Screen.PlaylistGrid },
+                                onConfirm = { name, songs ->
+                                    viewModel.createPlaylist(name, songs)
+                                    currentScreen = Screen.PlaylistGrid
+                                },
+                                onOpenPlayer = { currentScreen = Screen.SongDetail }
+                            )
+                        }
                     }
                 }
             }
@@ -61,7 +95,8 @@ class PlaylistActivity : ComponentActivity() {
 }
 
 sealed class Screen {
-    object PlaylistGrid : Screen()
-    object SongList : Screen()
-    object SongDetail : Screen()
+    data object PlaylistGrid : Screen()
+    data class SongList(val playlist: PlaylistUiModel) : Screen()
+    data object SongDetail : Screen()
+    data object CreatePlaylist : Screen()
 }
