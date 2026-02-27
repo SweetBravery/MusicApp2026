@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.example.musicapp2026.data.local.PlaylistEntity
 import com.example.musicapp2026.data.local.PlaylistSongCrossRef
 import com.example.musicapp2026.data.local.PlaylistWithSongs
@@ -26,4 +27,7 @@ interface PlaylistDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPlaylistSongCrossRef(ref: PlaylistSongCrossRef)
+
+    @Update
+    suspend fun updatePlaylist(playlist: PlaylistEntity)
 }

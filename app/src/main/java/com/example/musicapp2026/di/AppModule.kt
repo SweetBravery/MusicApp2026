@@ -73,6 +73,18 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideUpdateSongUseCase(repository: SongRepository): UpdateSongUseCase {
+        return UpdateSongUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpdatePlaylistUseCase(repository: PlaylistRepository): UpdatePlaylistUseCase {
+        return UpdatePlaylistUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
     fun provideGetRecentlyPlayedUseCase(repository: SongRepository): GetRecentlyPlayedUseCase {
         return GetRecentlyPlayedUseCase(repository)
     }

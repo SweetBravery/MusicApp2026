@@ -84,8 +84,9 @@ class PlaylistActivity : ComponentActivity() {
                             CreatePlaylistScreen(
                                 viewModel = viewModel,
                                 onBack = { currentScreen = Screen.PlaylistGrid },
-                                onConfirm = { name, songs ->
-                                    viewModel.createPlaylist(name, songs)
+                                onConfirm = { name, songIds ->
+                                    val selectedSongs = songIds.map { id -> viewModel.songs.value.first { it.id == id } }
+                                    viewModel.createPlaylist(name, selectedSongs)
                                     currentScreen = Screen.PlaylistGrid
                                 },
                                 onOpenPlayer = { currentScreen = Screen.SongDetail }

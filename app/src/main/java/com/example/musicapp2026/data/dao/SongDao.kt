@@ -6,10 +6,13 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.musicapp2026.data.local.SongEntity
+import kotlinx.coroutines.flow.Flow
 
-//dao communicates between the repository and the entities
 @Dao
 interface SongDao {
+
+    @Query("SELECT * FROM songs")
+    fun observeAllSongs(): Flow<List<SongEntity>>
 
     @Query("SELECT * FROM songs")
     suspend fun getAllSongs(): List<SongEntity>

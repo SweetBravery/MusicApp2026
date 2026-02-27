@@ -1,8 +1,10 @@
 package com.example.musicapp2026.domain.repository
 
 import com.example.musicapp2026.domain.Song
+import kotlinx.coroutines.flow.Flow
 
 interface SongRepository {
+    fun observeAllSongs(): Flow<List<Song>>
     suspend fun getAllSongs(): List<Song>
     suspend fun getSongById(id: Long): Song?
     suspend fun getRecentlyPlayed(): List<Song>

@@ -13,5 +13,6 @@ data class SongEntity(
     val duration: Long,
     val uri: String,
     val playCount: Int = 0,
-    val lastPlayed: Long = 0L
+    val lastPlayed: Long = 0L,
+    val imageUrl: String? = null
 )

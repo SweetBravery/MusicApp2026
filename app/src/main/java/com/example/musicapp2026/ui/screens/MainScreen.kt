@@ -1,12 +1,18 @@
 package com.example.musicapp2026.ui.screens
 
+import android.Manifest
+import android.content.Intent
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -14,12 +20,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.musicapp2026.domain.Song
+import com.example.musicapp2026.ui.viewmodel.MusicUiEvent
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -27,25 +38,54 @@ import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 fun MainScreen(
     viewModel: MusicViewModel,
     title: String = "Todas las canciones",
-    songs: List<Song>,
+    songs: List<Song>? = null,
     onBack: () -> Unit,
-    onOpenPlayer: () -> Unit,
-    onSongUpdated: () -> Unit = {}
+    onOpenPlayer: () -> Unit
 ) {
-    val currentSong by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val progress by viewModel.playbackProgress.collectAsState()
-
+    val uiState by viewModel.uiState.collectAsState()
+    
     var showMenu by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     var songForMenu by remember { mutableStateOf<Song?>(null) }
     var showEditDialog by remember { mutableStateOf(false) }
     var songToEdit by remember { mutableStateOf<Song?>(null) }
 
+    val context = LocalContext.current
+
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            uri?.let {
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                songForMenu?.let {
+                    viewModel.onEvent(MusicUiEvent.UpdateSongImage(it.id, uri.toString()))
+                }
+            }
+        }
+    )
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+        }
+    )
+
+    val displaySongs = songs ?: uiState.songs
+
     val filteredSongs = if (searchText.isBlank()) {
-        songs
+        displaySongs
     } else {
-        songs.filter {
+        displaySongs.filter {
             it.title.contains(searchText, ignoreCase = true) ||
                     it.artist.contains(searchText, ignoreCase = true)
         }
@@ -82,12 +122,12 @@ fun MainScreen(
         },
         bottomBar = {
             BottomPlayer(
-                currentSong = currentSong,
-                isPlaying = isPlaying,
-                progress = progress,
-                onPlayPause = { viewModel.togglePlayPause() },
-                onSkipNext = { viewModel.skipNext() },
-                onSkipPrevious = { viewModel.skipPrevious() },
+                currentSong = uiState.currentSong,
+                isPlaying = uiState.isPlaying,
+                progress = uiState.playbackProgress,
+                onPlayPause = { viewModel.onEvent(MusicUiEvent.TogglePlayPause) },
+                onSkipNext = { viewModel.onEvent(MusicUiEvent.SkipNext) },
+                onSkipPrevious = { viewModel.onEvent(MusicUiEvent.SkipPrevious) },
                 onOpenPlayer = onOpenPlayer
             )
         }
@@ -97,12 +137,12 @@ fun MainScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            items(filteredSongs) { song ->
+            items(filteredSongs, key = { it.id }) { song ->
                 Box {
                     SongItem(
                         song = song,
                         modifier = Modifier.combinedClickable(
-                            onClick = { viewModel.playSong(song, songs) },
+                            onClick = { viewModel.onEvent(MusicUiEvent.PlaySong(song, displaySongs)) },
                             onLongClick = { songForMenu = song }
                         )
                     )
@@ -120,29 +160,29 @@ fun MainScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("Edit Image") },
-                            onClick = { /* TODO */ songForMenu = null }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Add to playlist") },
-                            onClick = { /* TODO */ songForMenu = null }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            onClick = { /* TODO */ songForMenu = null }
+                            onClick = {
+                                songForMenu = song // Re-ensure it's set
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                                } else {
+                                    permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                                }
+                                // We don't null songForMenu here because imagePicker needs it
+                            }
                         )
                     }
                 }
             }
         }
     }
+    
     if (showEditDialog && songToEdit != null) {
         EditSongDialog(
             song = songToEdit!!,
             onDismiss = { showEditDialog = false },
-            onSave = { updatedSong ->
-                viewModel.updateSong(updatedSong)
+            onSave = { id, title, artist ->
+                viewModel.onEvent(MusicUiEvent.UpdateSongInfo(id, title, artist))
                 showEditDialog = false
-                onSongUpdated()
             }
         )
     }
@@ -152,7 +192,7 @@ fun MainScreen(
 fun EditSongDialog(
     song: Song,
     onDismiss: () -> Unit,
-    onSave: (Song) -> Unit
+    onSave: (Long, String, String) -> Unit
 ) {
     var title by remember { mutableStateOf(song.title) }
     var artist by remember { mutableStateOf(song.artist) }
@@ -177,8 +217,7 @@ fun EditSongDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val updatedSong = song.copy(title = title, artist = artist)
-                onSave(updatedSong)
+                onSave(song.id, title, artist)
             }) {
                 Text("Save")
             }
@@ -191,7 +230,6 @@ fun EditSongDialog(
     )
 }
 
-
 @Composable
 fun SongItem(song: Song, modifier: Modifier = Modifier) {
     Row(
@@ -200,11 +238,15 @@ fun SongItem(song: Song, modifier: Modifier = Modifier) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            Icons.Default.MusicNote,
+        AsyncImage(
+            model = song.imageUrl,
             contentDescription = null,
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.primary
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop,
+            error = rememberVectorPainter(Icons.Default.MusicNote),
+            placeholder = rememberVectorPainter(Icons.Default.MusicNote)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column {

@@ -8,4 +8,5 @@ interface PlaylistRepository {
     suspend fun getPlaylistWithSongs(id: Long): Playlist
     suspend fun createDefaultPlaylist()
     suspend fun createPlaylistWithSongs(name: String, songIds: List<Long>)
+    suspend fun updatePlaylist(playlist: Playlist)
 }

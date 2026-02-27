@@ -6,5 +6,6 @@ data class PlaylistUiModel(
     val id: Long,
     val name: String,
     val count: Int,
-    val songs: List<Song> = emptyList()
+    val songs: List<Song> = emptyList(),
+    val imageUrl: String? = null
 )

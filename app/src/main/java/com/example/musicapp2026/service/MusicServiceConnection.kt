@@ -49,7 +49,12 @@ class MusicServiceConnection @Inject constructor(
                 _isPlaying.value = isPlaying
             },
             onMediaItemChanged = { mediaItem ->
-                _currentSong.value = _allSongs.value.find { it.id.toString() == mediaItem?.mediaId }
+                val songId = mediaItem?.mediaId?.toLongOrNull()
+                _currentSong.value = if (songId != null) {
+                    _allSongs.value.find { it.id == songId }
+                } else {
+                    null
+                }
             }
         )
 

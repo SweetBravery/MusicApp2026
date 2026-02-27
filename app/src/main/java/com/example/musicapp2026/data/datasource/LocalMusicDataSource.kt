@@ -13,8 +13,8 @@ class LocalMusicDataSource(private val context: Context) {
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.DATA
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.DURATION
         )
 
         context.contentResolver.query(
@@ -36,10 +36,16 @@ class LocalMusicDataSource(private val context: Context) {
                 val artist = cursor.getString(artistColumn)
                 val album = cursor.getString(albumColumn)
                 val duration = cursor.getLong(durationColumn)
+                
                 val contentUri = ContentUris.withAppendedId(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     id
                 ).toString()
+                
+                // Use the song's URI as the default imageUrl. 
+                // Our MediaArtworkFetcher will extract the embedded artwork from it.
+                // If the user edits this field, the repository will preserve the change.
+                val imageUrl = contentUri
 
                 songs.add(
                     Song(
@@ -48,7 +54,8 @@ class LocalMusicDataSource(private val context: Context) {
                         artist = artist,
                         album = album,
                         duration = duration,
-                        uri = contentUri
+                        uri = contentUri,
+                        imageUrl = imageUrl
                     )
                 )
             }

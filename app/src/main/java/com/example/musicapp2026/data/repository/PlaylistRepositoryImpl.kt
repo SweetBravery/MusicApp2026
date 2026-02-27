@@ -33,4 +33,12 @@ class PlaylistRepositoryImpl(
             dao.insertPlaylistSongCrossRef(PlaylistSongCrossRef(playlistId, songId))
         }
     }
+
+    override suspend fun updatePlaylist(playlist: Playlist) {
+        dao.updatePlaylist(PlaylistEntity(
+            playlistId = playlist.id,
+            name = playlist.title,
+            imageUrl = playlist.imageUrl
+        ))
+    }
 }

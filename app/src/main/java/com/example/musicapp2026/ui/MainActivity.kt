@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import com.example.musicapp2026.domain.Song
 import com.example.musicapp2026.ui.screens.MainScreen
 import com.example.musicapp2026.ui.screens.SongDetailScreen
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
@@ -44,7 +45,6 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     var showDetail by remember { mutableStateOf(false) }
-                    val songs by viewModel.songs.collectAsState()
 
                     if (showDetail) {
                         SongDetailScreen(
@@ -54,7 +54,6 @@ class MainActivity : ComponentActivity() {
                     } else {
                         MainScreen(
                             viewModel = viewModel,
-                            songs = songs,
                             onBack = { finish() },
                             onOpenPlayer = { showDetail = true }
                         )

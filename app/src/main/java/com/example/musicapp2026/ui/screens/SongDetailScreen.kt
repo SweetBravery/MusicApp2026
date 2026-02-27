@@ -1,6 +1,8 @@
 package com.example.musicapp2026.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -8,9 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 import java.util.concurrent.TimeUnit
 
@@ -51,21 +57,30 @@ fun SongDetailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            // Placeholder for Album Art
+            // Album Art
             Card(
                 modifier = Modifier
                     .size(300.dp)
                     .aspectRatio(1f),
                 elevation = CardDefaults.cardElevation(8.dp)
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        Icons.Default.MusicNote,
-                        contentDescription = null,
-                        modifier = Modifier.size(100.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    )
-                }
+                AsyncImage(
+                    model = currentSong?.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    onLoading = {
+                        Log.d("SongDetailScreen", "Loading image: ${currentSong?.imageUrl}")
+                    },
+                    onSuccess = {
+                        Log.d("SongDetailScreen", "Image loaded successfully: ${currentSong?.imageUrl}")
+                    },
+                    onError = { state ->
+                        Log.e("SongDetailScreen", "Error loading image: ${currentSong?.imageUrl}", state.result.throwable)
+                    },
+                    error = rememberVectorPainter(Icons.Default.MusicNote),
+                    placeholder = rememberVectorPainter(Icons.Default.MusicNote)
+                )
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
