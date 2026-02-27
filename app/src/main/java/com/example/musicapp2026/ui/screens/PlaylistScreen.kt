@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -22,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +49,8 @@ fun PlaylistScreen(
     var showMenu by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     var playlistForMenu by remember { mutableStateOf<PlaylistUiModel?>(null) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var playlistToEdit by remember { mutableStateOf<PlaylistUiModel?>(null) }
 
     val context = LocalContext.current
 
@@ -132,7 +136,7 @@ fun PlaylistScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(paddingValues)
         ) {
-            items(filteredPlaylists) { playlist ->
+            items(filteredPlaylists, key = { it.id }) { playlist ->
                 Box {
                     PlaylistCard(
                         playlist = playlist,
@@ -146,18 +150,22 @@ fun PlaylistScreen(
                         onDismissRequest = { playlistForMenu = null }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Edit Info") },
-                            onClick = { /* TODO */ playlistForMenu = null }
+                            text = { Text("Editar Info") },
+                            onClick = {
+                                playlistToEdit = playlist
+                                showEditDialog = true
+                                playlistForMenu = null
+                            }
                         )
                         DropdownMenuItem(
-                            text = { Text("Edit Image") },
+                            text = { Text("Editar Imagen") },
                             onClick = {
+                                // Keep playlistForMenu for the imagePicker result
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
                                 } else {
                                     permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
                                 }
-                                playlistForMenu = null
                             }
                         )
                     }
@@ -165,6 +173,54 @@ fun PlaylistScreen(
             }
         }
     }
+
+    if (showEditDialog && playlistToEdit != null) {
+        EditPlaylistDialog(
+            playlist = playlistToEdit!!,
+            onDismiss = { showEditDialog = false },
+            onSave = { updatedPlaylist ->
+                viewModel.updatePlaylist(updatedPlaylist)
+                showEditDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun EditPlaylistDialog(
+    playlist: PlaylistUiModel,
+    onDismiss: () -> Unit,
+    onSave: (PlaylistUiModel) -> Unit
+) {
+    var name by remember { mutableStateOf(playlist.name) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Playlist") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nombre") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(playlist.copy(name = name))
+            }) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable
@@ -175,33 +231,50 @@ fun PlaylistCard(playlist: PlaylistUiModel, modifier: Modifier = Modifier) {
             .height(180.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            AsyncImage(
-                model = playlist.imageUrl,
-                contentDescription = null,
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Background Image (Dimmed and Darkened)
+            if (playlist.imageUrl != null) {
+                AsyncImage(
+                    model = playlist.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                // Dark overlay to dim and darken the image
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                )
+            }
+
+            // Foreground Content (Icon and Text)
+            Column(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop,
-                error = rememberVectorPainter(Icons.AutoMirrored.Filled.PlaylistPlay),
-                placeholder = rememberVectorPainter(Icons.AutoMirrored.Filled.PlaylistPlay)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = playlist.name,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = "${playlist.count} canciones",
-                style = MaterialTheme.typography.bodySmall
-            )
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = if (playlist.imageUrl != null) Color.White else MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = playlist.name,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (playlist.imageUrl != null) Color.White else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "${playlist.count} canciones",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (playlist.imageUrl != null) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
