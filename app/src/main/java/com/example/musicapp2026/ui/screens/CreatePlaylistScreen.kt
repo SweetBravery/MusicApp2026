@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.musicapp2026.domain.Song
+import com.example.musicapp2026.ui.viewmodel.MusicUiEvent
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,9 +26,7 @@ fun CreatePlaylistScreen(
     onOpenPlayer: () -> Unit
 ) {
     val songs by viewModel.songs.collectAsState()
-    val currentSong by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val progress by viewModel.playbackProgress.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     
     var playlistName by remember { mutableStateOf("") }
     val selectedSongs = remember { mutableStateListOf<Long>() }
@@ -53,12 +52,16 @@ fun CreatePlaylistScreen(
         },
         bottomBar = {
             BottomPlayer(
-                currentSong = currentSong,
-                isPlaying = isPlaying,
-                progress = progress,
-                onPlayPause = { viewModel.togglePlayPause() },
-                onSkipNext = { viewModel.skipNext() },
-                onSkipPrevious = { viewModel.skipPrevious() },
+                currentSong = uiState.currentSong,
+                isPlaying = uiState.isPlaying,
+                progress = uiState.playbackProgress,
+                repeatMode = uiState.repeatMode,
+                isShuffleEnabled = uiState.isShuffleModeEnabled,
+                onPlayPause = { viewModel.onEvent(MusicUiEvent.TogglePlayPause) },
+                onSkipNext = { viewModel.onEvent(MusicUiEvent.SkipNext) },
+                onSkipPrevious = { viewModel.onEvent(MusicUiEvent.SkipPrevious) },
+                onToggleRepeat = { viewModel.onEvent(MusicUiEvent.ToggleRepeatMode) },
+                onToggleShuffle = { viewModel.onEvent(MusicUiEvent.ToggleShuffleMode) },
                 onOpenPlayer = onOpenPlayer
             )
         }

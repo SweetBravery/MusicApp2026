@@ -10,6 +10,7 @@ import com.example.musicapp2026.data.local.MusicDatabase
 import com.example.musicapp2026.domain.repository.PlaylistRepository
 import com.example.musicapp2026.domain.repository.SongRepository
 import com.example.musicapp2026.domain.usecase.*
+import com.example.musicapp2026.util.ImageDownloader
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -45,6 +46,12 @@ object AppModule {
     @Singleton
     fun provideLocalMusicDataSource(@ApplicationContext context: Context): LocalMusicDataSource {
         return LocalMusicDataSource(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideImageDownloader(@ApplicationContext context: Context): ImageDownloader {
+        return ImageDownloader(context)
     }
 
     @Provides

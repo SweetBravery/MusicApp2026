@@ -8,8 +8,9 @@ import com.example.musicapp2026.domain.Song
 import com.example.musicapp2026.domain.repository.SongRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
-class SongRepositoryImpl(
+class SongRepositoryImpl @Inject constructor(
     private val dao: SongDao,
     private val localDataSource: LocalMusicDataSource
 ) : SongRepository {

@@ -17,7 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.musicapp2026.ui.viewmodel.MusicUiEvent
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
+import androidx.media3.common.Player
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,6 +28,7 @@ fun SongDetailScreen(
     viewModel: MusicViewModel,
     onBack: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val progress by viewModel.playbackProgress.collectAsState()
@@ -120,26 +123,74 @@ fun SongDetailScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { viewModel.skipPrevious() }) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(48.dp))
-                }
-                
-                LargeFloatingActionButton(
-                    onClick = { viewModel.togglePlayPause() },
-                    shape = MaterialTheme.shapes.extraLarge
-                ) {
+                // Left: Equalizer Placeholder
+                IconButton(onClick = { /* Placeholder */ }) {
                     Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        modifier = Modifier.size(48.dp)
+                        Icons.Default.GraphicEq,
+                        contentDescription = "Equalizer",
+                        modifier = Modifier.size(32.dp)
                     )
                 }
 
-                IconButton(onClick = { viewModel.skipNext() }) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(48.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    IconButton(onClick = { viewModel.skipPrevious() }) {
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(48.dp))
+                    }
+                    
+                    LargeFloatingActionButton(
+                        onClick = { viewModel.togglePlayPause() },
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+
+                    IconButton(onClick = { viewModel.skipNext() }) {
+                        Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(48.dp))
+                    }
+                }
+
+                // Right: Shuffle/Repeat Combined
+                IconButton(
+                    onClick = {
+                        if (uiState.isShuffleModeEnabled) {
+                            viewModel.onEvent(MusicUiEvent.ToggleShuffleMode)
+                        } else {
+                            viewModel.onEvent(MusicUiEvent.ToggleRepeatMode)
+                            if (uiState.repeatMode == Player.REPEAT_MODE_OFF) {
+                                viewModel.onEvent(MusicUiEvent.ToggleShuffleMode)
+                            }
+                        }
+                    },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    val icon = when {
+                        uiState.isShuffleModeEnabled -> Icons.Default.Shuffle
+                        uiState.repeatMode == Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                        uiState.repeatMode == Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
+                        else -> Icons.Default.Repeat
+                    }
+                    val tint = if (uiState.isShuffleModeEnabled || uiState.repeatMode != Player.REPEAT_MODE_OFF) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    
+                    Icon(
+                        icon,
+                        contentDescription = "Playback Mode",
+                        modifier = Modifier.size(32.dp),
+                        tint = tint
+                    )
                 }
             }
         }

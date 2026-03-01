@@ -23,7 +23,9 @@ class MusicController(private val context: Context) {
     fun connect(
         onConnected: () -> Unit,
         onPlaybackStateChanged: (Boolean) -> Unit,
-        onMediaItemChanged: (MediaItem?) -> Unit
+        onMediaItemChanged: (MediaItem?) -> Unit,
+        onRepeatModeChanged: (Int) -> Unit = {},
+        onShuffleModeChanged: (Boolean) -> Unit = {}
     ) {
         val sessionToken = SessionToken(
             context,
@@ -41,6 +43,14 @@ class MusicController(private val context: Context) {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     super.onMediaItemTransition(mediaItem, reason)
                     onMediaItemChanged(mediaItem)
+                }
+
+                override fun onRepeatModeChanged(repeatMode: Int) {
+                    onRepeatModeChanged(repeatMode)
+                }
+
+                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                    onShuffleModeChanged(shuffleModeEnabled)
                 }
             })
             onConnected()
@@ -78,6 +88,17 @@ class MusicController(private val context: Context) {
     fun seekTo(position: Long) {
         controller?.seekTo(position)
     }
+
+    fun setRepeatMode(repeatMode: Int) {
+        controller?.repeatMode = repeatMode
+    }
+
+    fun setShuffleMode(enabled: Boolean) {
+        controller?.shuffleModeEnabled = enabled
+    }
+
+    fun getRepeatMode(): Int = controller?.repeatMode ?: Player.REPEAT_MODE_OFF
+    fun getShuffleMode(): Boolean = controller?.shuffleModeEnabled ?: false
 
     fun release() {
         controller?.release()

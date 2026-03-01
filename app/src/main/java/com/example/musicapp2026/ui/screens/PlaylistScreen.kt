@@ -8,6 +8,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -16,8 +17,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,8 +28,12 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.musicapp2026.data.remote.Album
+import com.example.musicapp2026.data.remote.Track
+import com.example.musicapp2026.ui.viewmodel.MusicUiEvent
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 import com.example.musicapp2026.ui.viewmodel.PlaylistUiModel
 
@@ -42,14 +46,15 @@ fun PlaylistScreen(
     onOpenPlayer: () -> Unit
 ) {
     val playlists by viewModel.playlists.collectAsState()
-    val currentSong by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val progress by viewModel.playbackProgress.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     var playlistForMenu by remember { mutableStateOf<PlaylistUiModel?>(null) }
     var showEditDialog by remember { mutableStateOf(false) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var showOnlineSearchDialog by remember { mutableStateOf(false) }
     var playlistToEdit by remember { mutableStateOf<PlaylistUiModel?>(null) }
 
     val context = LocalContext.current
@@ -66,7 +71,7 @@ fun PlaylistScreen(
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                playlistForMenu?.let {
+                playlistToEdit?.let {
                     viewModel.updatePlaylist(it.copy(imageUrl = uri.toString()))
                 }
             }
@@ -119,12 +124,16 @@ fun PlaylistScreen(
         },
         bottomBar = {
             BottomPlayer(
-                currentSong = currentSong,
-                isPlaying = isPlaying,
-                progress = progress,
-                onPlayPause = { viewModel.togglePlayPause() },
-                onSkipNext = { viewModel.skipNext() },
-                onSkipPrevious = { viewModel.skipPrevious() },
+                currentSong = uiState.currentSong,
+                isPlaying = uiState.isPlaying,
+                progress = uiState.playbackProgress,
+                repeatMode = uiState.repeatMode,
+                isShuffleEnabled = uiState.isShuffleModeEnabled,
+                onPlayPause = { viewModel.onEvent(MusicUiEvent.TogglePlayPause) },
+                onSkipNext = { viewModel.onEvent(MusicUiEvent.SkipNext) },
+                onSkipPrevious = { viewModel.onEvent(MusicUiEvent.SkipPrevious) },
+                onToggleRepeat = { viewModel.onEvent(MusicUiEvent.ToggleRepeatMode) },
+                onToggleShuffle = { viewModel.onEvent(MusicUiEvent.ToggleShuffleMode) },
                 onOpenPlayer = onOpenPlayer
             )
         }
@@ -160,12 +169,9 @@ fun PlaylistScreen(
                         DropdownMenuItem(
                             text = { Text("Editar Imagen") },
                             onClick = {
-                                // Keep playlistForMenu for the imagePicker result
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                                } else {
-                                    permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                                }
+                                playlistToEdit = playlist
+                                showImageSourceDialog = true
+                                playlistForMenu = null
                             }
                         )
                     }
@@ -182,6 +188,37 @@ fun PlaylistScreen(
                 viewModel.updatePlaylist(updatedPlaylist)
                 showEditDialog = false
             }
+        )
+    }
+
+    if (showImageSourceDialog && playlistToEdit != null) {
+        ImageSourceDialog(
+            onDismiss = { showImageSourceDialog = false },
+            onSelectFromDevice = {
+                showImageSourceDialog = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                } else {
+                    permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
+            },
+            onSearchOnline = {
+                showImageSourceDialog = false
+                showOnlineSearchDialog = true
+            }
+        )
+    }
+
+    if (showOnlineSearchDialog && playlistToEdit != null) {
+        OnlineSearchDialog(
+            initialQuery = playlistToEdit!!.name,
+            searchResults = searchResults,
+            onSearch = { query -> viewModel.searchOnline(query, isAlbum = true) },
+            onSelect = { url ->
+                viewModel.downloadAndApplyImage(url, playlistToEdit!!.id, isPlaylist = true)
+                showOnlineSearchDialog = false
+            },
+            onDismiss = { showOnlineSearchDialog = false }
         )
     }
 }
@@ -244,7 +281,7 @@ fun PlaylistCard(playlist: PlaylistUiModel, modifier: Modifier = Modifier) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f))
+                        .background(Color.Black.copy(alpha = 0.6f))
                 )
             }
 

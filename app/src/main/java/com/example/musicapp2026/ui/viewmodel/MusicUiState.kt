@@ -8,7 +8,9 @@ data class MusicUiState(
     val isPlaying: Boolean = false,
     val playbackProgress: Long = 0L,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val repeatMode: Int = 0, // 0: OFF, 1: ONE, 2: ALL
+    val isShuffleModeEnabled: Boolean = false
 )
 
 sealed class MusicUiEvent {
@@ -19,4 +21,6 @@ sealed class MusicUiEvent {
     data class SeekTo(val position: Long) : MusicUiEvent()
     data class UpdateSongImage(val songId: Long, val imageUri: String) : MusicUiEvent()
     data class UpdateSongInfo(val songId: Long, val title: String, val artist: String) : MusicUiEvent()
+    object ToggleRepeatMode : MusicUiEvent()
+    object ToggleShuffleMode : MusicUiEvent()
 }

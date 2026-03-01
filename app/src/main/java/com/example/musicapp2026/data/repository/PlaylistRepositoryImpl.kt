@@ -8,8 +8,9 @@ import com.example.musicapp2026.domain.Playlist
 import com.example.musicapp2026.domain.repository.PlaylistRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
-class PlaylistRepositoryImpl(
+class PlaylistRepositoryImpl @Inject constructor(
     private val dao: PlaylistDao
 ) : PlaylistRepository {
     override fun getAllPlaylists(): Flow<List<Playlist>> {

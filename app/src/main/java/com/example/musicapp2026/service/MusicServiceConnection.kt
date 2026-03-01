@@ -2,6 +2,7 @@ package com.example.musicapp2026.service
 
 import android.content.Context
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import com.example.musicapp2026.controller.MusicController
 import com.example.musicapp2026.domain.Song
 import com.example.musicapp2026.domain.usecase.GetAllSongsUseCase
@@ -33,6 +34,12 @@ class MusicServiceConnection @Inject constructor(
     private val _playbackProgress = MutableStateFlow(0L)
     val playbackProgress: StateFlow<Long> = _playbackProgress
 
+    private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+    val repeatMode: StateFlow<Int> = _repeatMode
+
+    private val _shuffleModeEnabled = MutableStateFlow(false)
+    val shuffleModeEnabled: StateFlow<Boolean> = _shuffleModeEnabled
+
     private val connectionScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     init {
@@ -43,7 +50,8 @@ class MusicServiceConnection @Inject constructor(
         
         musicController.connect(
             onConnected = {
-                // Connection established
+                _repeatMode.value = musicController.getRepeatMode()
+                _shuffleModeEnabled.value = musicController.getShuffleMode()
             },
             onPlaybackStateChanged = { isPlaying ->
                 _isPlaying.value = isPlaying
@@ -55,6 +63,12 @@ class MusicServiceConnection @Inject constructor(
                 } else {
                     null
                 }
+            },
+            onRepeatModeChanged = { mode ->
+                _repeatMode.value = mode
+            },
+            onShuffleModeChanged = { enabled ->
+                _shuffleModeEnabled.value = enabled
             }
         )
 
@@ -99,6 +113,19 @@ class MusicServiceConnection @Inject constructor(
     fun skipNext() = musicController.skipNext()
     fun skipPrevious() = musicController.skipPrevious()
     fun seekTo(position: Long) = musicController.seekTo(position)
+
+    fun toggleRepeatMode() {
+        val nextMode = when (_repeatMode.value) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        musicController.setRepeatMode(nextMode)
+    }
+
+    fun toggleShuffleMode() {
+        musicController.setShuffleMode(!_shuffleModeEnabled.value)
+    }
 
     fun updateSong(song: Song) {
         connectionScope.launch {

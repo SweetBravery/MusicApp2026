@@ -6,7 +6,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -21,6 +23,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -29,9 +33,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.musicapp2026.data.remote.Track
 import com.example.musicapp2026.domain.Song
 import com.example.musicapp2026.ui.viewmodel.MusicUiEvent
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
+import androidx.media3.common.Player
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -43,11 +49,14 @@ fun MainScreen(
     onOpenPlayer: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
     
     var showMenu by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     var songForMenu by remember { mutableStateOf<Song?>(null) }
     var showEditDialog by remember { mutableStateOf(false) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var showOnlineSearchDialog by remember { mutableStateOf(false) }
     var songToEdit by remember { mutableStateOf<Song?>(null) }
 
     val context = LocalContext.current
@@ -64,7 +73,7 @@ fun MainScreen(
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                songForMenu?.let {
+                songToEdit?.let {
                     viewModel.onEvent(MusicUiEvent.UpdateSongImage(it.id, uri.toString()))
                 }
             }
@@ -125,9 +134,13 @@ fun MainScreen(
                 currentSong = uiState.currentSong,
                 isPlaying = uiState.isPlaying,
                 progress = uiState.playbackProgress,
+                repeatMode = uiState.repeatMode,
+                isShuffleEnabled = uiState.isShuffleModeEnabled,
                 onPlayPause = { viewModel.onEvent(MusicUiEvent.TogglePlayPause) },
                 onSkipNext = { viewModel.onEvent(MusicUiEvent.SkipNext) },
                 onSkipPrevious = { viewModel.onEvent(MusicUiEvent.SkipPrevious) },
+                onToggleRepeat = { viewModel.onEvent(MusicUiEvent.ToggleRepeatMode) },
+                onToggleShuffle = { viewModel.onEvent(MusicUiEvent.ToggleShuffleMode) },
                 onOpenPlayer = onOpenPlayer
             )
         }
@@ -138,9 +151,12 @@ fun MainScreen(
                 .fillMaxSize()
         ) {
             items(filteredSongs, key = { it.id }) { song ->
+                val isCurrentSong = uiState.currentSong?.id == song.id
                 Box {
                     SongItem(
                         song = song,
+                        isCurrentSong = isCurrentSong,
+                        isPlaying = uiState.isPlaying && isCurrentSong,
                         modifier = Modifier.combinedClickable(
                             onClick = { viewModel.onEvent(MusicUiEvent.PlaySong(song, displaySongs)) },
                             onLongClick = { songForMenu = song }
@@ -151,7 +167,7 @@ fun MainScreen(
                         onDismissRequest = { songForMenu = null }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Edit Info") },
+                            text = { Text("Editar Info") },
                             onClick = {
                                 songToEdit = song
                                 showEditDialog = true
@@ -159,15 +175,11 @@ fun MainScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Edit Image") },
+                            text = { Text("Editar Imagen") },
                             onClick = {
-                                songForMenu = song // Re-ensure it's set
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                                } else {
-                                    permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                                }
-                                // We don't null songForMenu here because imagePicker needs it
+                                songToEdit = song
+                                showImageSourceDialog = true
+                                songForMenu = null
                             }
                         )
                     }
@@ -186,6 +198,154 @@ fun MainScreen(
             }
         )
     }
+
+    if (showImageSourceDialog && songToEdit != null) {
+        ImageSourceDialog(
+            onDismiss = { showImageSourceDialog = false },
+            onSelectFromDevice = {
+                showImageSourceDialog = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                } else {
+                    permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
+            },
+            onSearchOnline = {
+                showImageSourceDialog = false
+                showOnlineSearchDialog = true
+            }
+        )
+    }
+
+    if (showOnlineSearchDialog && songToEdit != null) {
+        OnlineSearchDialog(
+            initialQuery = "${songToEdit!!.artist} ${songToEdit!!.title}",
+            searchResults = searchResults,
+            onSearch = { query -> viewModel.searchOnline(query, isAlbum = false) },
+            onSelect = { url ->
+                viewModel.downloadAndApplyImage(url, songToEdit!!.id, isPlaylist = false)
+                showOnlineSearchDialog = false
+            },
+            onDismiss = { showOnlineSearchDialog = false }
+        )
+    }
+}
+
+@Composable
+fun ImageSourceDialog(
+    onDismiss: () -> Unit,
+    onSelectFromDevice: () -> Unit,
+    onSearchOnline: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Seleccionar origen de imagen") },
+        text = {
+            Column {
+                TextButton(
+                    onClick = onSelectFromDevice,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Seleccionar desde el dispositivo")
+                    }
+                }
+                TextButton(
+                    onClick = onSearchOnline,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Public, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Buscar con API theaudioDB")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun OnlineSearchDialog(
+    initialQuery: String,
+    searchResults: List<Any>,
+    onSearch: (String) -> Unit,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf(initialQuery) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Buscar en línea") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Término de búsqueda") },
+                    trailingIcon = {
+                        IconButton(onClick = { onSearch(query) }) {
+                            Icon(Icons.Default.Search, contentDescription = null)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                    items(searchResults) { result ->
+                        val (title, artist, thumb) = when (result) {
+                            is Track -> Triple(result.title, result.artist, result.thumb)
+                            is com.example.musicapp2026.data.remote.Album -> Triple(result.title, result.artist, result.thumb)
+                            else -> Triple("", "", null)
+                        }
+                        
+                        if (thumb != null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelect(thumb) }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = thumb,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(50.dp).clip(RoundedCornerShape(4.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(artist, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        }
+    )
 }
 
 @Composable
@@ -231,28 +391,104 @@ fun EditSongDialog(
 }
 
 @Composable
-fun SongItem(song: Song, modifier: Modifier = Modifier) {
+fun SongItem(
+    song: Song, 
+    isCurrentSong: Boolean = false,
+    isPlaying: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val textColor = if (isCurrentSong) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface
+    
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = song.imageUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop,
-            error = rememberVectorPainter(Icons.Default.MusicNote),
-            placeholder = rememberVectorPainter(Icons.Default.MusicNote)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text = song.title, fontWeight = FontWeight.Bold)
-            Text(text = song.artist, style = MaterialTheme.typography.bodySmall)
+        Box(contentAlignment = Alignment.Center) {
+            AsyncImage(
+                model = song.imageUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop,
+                error = rememberVectorPainter(Icons.Default.MusicNote),
+                placeholder = rememberVectorPainter(Icons.Default.MusicNote)
+            )
+            if (isPlaying) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    MusicVisualizerAnimation()
+                }
+            }
         }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song.title, 
+                fontWeight = FontWeight.Bold,
+                color = textColor,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = song.artist, 
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isCurrentSong) textColor.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (isCurrentSong && !isPlaying) {
+            Icon(
+                Icons.Default.Pause,
+                contentDescription = null,
+                tint = textColor,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun MusicVisualizerAnimation() {
+    val infiniteTransition = rememberInfiniteTransition(label = "visualizer")
+    
+    @Composable
+    fun Bar(durationMillis: Int) {
+        val height by infiniteTransition.animateFloat(
+            initialValue = 0.2f,
+            targetValue = 0.8f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "barHeight"
+        )
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .fillMaxHeight(height)
+                .background(Color(0xFFFFD700), RoundedCornerShape(2.dp))
+        )
+    }
+
+    Row(
+        modifier = Modifier.height(28.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Bar(400)
+        Bar(600)
+        Bar(500)
+        Bar(700)
     }
 }
 
@@ -261,9 +497,13 @@ fun BottomPlayer(
     currentSong: Song?,
     isPlaying: Boolean,
     progress: Long,
+    repeatMode: Int,
+    isShuffleEnabled: Boolean,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
+    onToggleRepeat: () -> Unit,
+    onToggleShuffle: () -> Unit,
     onOpenPlayer: () -> Unit
 ) {
     val duration = currentSong?.duration ?: 1L
@@ -315,44 +555,92 @@ fun BottomPlayer(
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onSkipPrevious,
-                    modifier = Modifier.size(56.dp)
-                ) {
+                // Left: Equalizer Placeholder
+                IconButton(onClick = { /* Placeholder */ }) {
                     Icon(
-                        Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
-                        modifier = Modifier.size(36.dp)
+                        Icons.Default.GraphicEq,
+                        contentDescription = "Equalizer",
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
-                FilledIconButton(
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(72.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        modifier = Modifier.size(44.dp)
-                    )
+                    IconButton(
+                        onClick = onSkipPrevious,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.SkipPrevious,
+                            contentDescription = "Previous",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    FilledIconButton(
+                        onClick = onPlayPause,
+                        modifier = Modifier.size(64.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onSkipNext,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.SkipNext,
+                            contentDescription = "Next",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
 
+                // Right: Shuffle/Repeat Combined
                 IconButton(
-                    onClick = onSkipNext,
-                    modifier = Modifier.size(56.dp)
+                    onClick = {
+                        if (isShuffleEnabled) {
+                            onToggleShuffle() // Disable shuffle and keep repeat mode
+                        } else {
+                            onToggleRepeat() // Cycle repeat modes
+                            if (repeatMode == Player.REPEAT_MODE_OFF) {
+                                onToggleShuffle() // Enable shuffle if repeat cycles back to off
+                            }
+                        }
+                    },
+                    modifier = Modifier.size(48.dp)
                 ) {
+                    val icon = when {
+                        isShuffleEnabled -> Icons.Default.Shuffle
+                        repeatMode == Player.REPEAT_MODE_ONE -> Icons.Default.RepeatOne
+                        repeatMode == Player.REPEAT_MODE_ALL -> Icons.Default.Repeat
+                        else -> Icons.Default.Repeat // Default icon when everything is off
+                    }
+                    val tint = if (isShuffleEnabled || repeatMode != Player.REPEAT_MODE_OFF) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    
                     Icon(
-                        Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        modifier = Modifier.size(36.dp)
+                        icon,
+                        contentDescription = "Playback Mode",
+                        modifier = Modifier.size(28.dp),
+                        tint = tint
                     )
                 }
             }
