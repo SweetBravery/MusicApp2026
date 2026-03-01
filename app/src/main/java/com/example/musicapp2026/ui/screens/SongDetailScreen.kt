@@ -26,7 +26,8 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun SongDetailScreen(
     viewModel: MusicViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
@@ -45,8 +46,13 @@ fun SongDetailScreen(
             TopAppBar(
                 title = { Text("Ahora suena") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Row {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 }
             )

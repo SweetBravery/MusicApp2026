@@ -43,6 +43,7 @@ fun PlaylistScreen(
     viewModel: MusicViewModel,
     onPlaylistClick: (PlaylistUiModel) -> Unit,
     onCreatePlaylistClick: () -> Unit,
+    onMenuClick: () -> Unit,
     onOpenPlayer: () -> Unit
 ) {
     val playlists by viewModel.playlists.collectAsState()
@@ -97,6 +98,11 @@ fun PlaylistScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Mis Listas", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                },
                 actions = {
                     Box {
                         IconButton(onClick = { showMenu = !showMenu }) {

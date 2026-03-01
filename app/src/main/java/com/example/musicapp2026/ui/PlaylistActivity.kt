@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.example.musicapp2026.ui.screens.CreatePlaylistScreen
-import com.example.musicapp2026.ui.screens.MainScreen
-import com.example.musicapp2026.ui.screens.PlaylistScreen
-import com.example.musicapp2026.ui.screens.SongDetailScreen
+import com.example.musicapp2026.ui.screens.*
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
 import com.example.musicapp2026.ui.viewmodel.PlaylistUiModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class PlaylistActivity : ComponentActivity() {
@@ -29,68 +27,77 @@ class PlaylistActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    var currentScreen by remember { mutableStateOf<Screen>(Screen.PlaylistGrid) }
-                    val playlists by viewModel.playlists.collectAsState()
+                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                val scope = rememberCoroutineScope()
+                
+                MusicAppDrawer(drawerState = drawerState) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        var currentScreen by remember { mutableStateOf<Screen>(Screen.PlaylistGrid) }
+                        val playlists by viewModel.playlists.collectAsState()
 
-                    BackHandler(enabled = currentScreen != Screen.PlaylistGrid) {
-                        currentScreen = when (currentScreen) {
-                            is Screen.SongList -> Screen.PlaylistGrid
-                            Screen.SongDetail -> Screen.PlaylistGrid
-                            Screen.CreatePlaylist -> Screen.PlaylistGrid
-                            else -> Screen.PlaylistGrid
+                        BackHandler(enabled = currentScreen != Screen.PlaylistGrid) {
+                            currentScreen = when (currentScreen) {
+                                is Screen.SongList -> Screen.PlaylistGrid
+                                Screen.SongDetail -> Screen.PlaylistGrid
+                                Screen.CreatePlaylist -> Screen.PlaylistGrid
+                                else -> Screen.PlaylistGrid
+                            }
                         }
-                    }
 
-                    when (val screen = currentScreen) {
-                        Screen.PlaylistGrid -> {
-                            PlaylistScreen(
-                                viewModel = viewModel,
-                                onPlaylistClick = { playlist ->
-                                    currentScreen = Screen.SongList(playlist.id)
-                                },
-                                onCreatePlaylistClick = {
-                                    currentScreen = Screen.CreatePlaylist
-                                },
-                                onOpenPlayer = {
-                                    currentScreen = Screen.SongDetail
-                                }
-                            )
-                        }
-                        is Screen.SongList -> {
-                            val playlist = playlists.find { it.id == screen.playlistId }
-                            if (playlist != null) {
-                                MainScreen(
+                        when (val screen = currentScreen) {
+                            Screen.PlaylistGrid -> {
+                                PlaylistScreen(
                                     viewModel = viewModel,
-                                    title = playlist.name,
-                                    songs = playlist.songs,
+                                    onPlaylistClick = { playlist ->
+                                        currentScreen = Screen.SongList(playlist.id)
+                                    },
+                                    onCreatePlaylistClick = {
+                                        currentScreen = Screen.CreatePlaylist
+                                    },
+                                    onMenuClick = { scope.launch { drawerState.open() } },
+                                    onOpenPlayer = {
+                                        currentScreen = Screen.SongDetail
+                                    }
+                                )
+                            }
+                            is Screen.SongList -> {
+                                val playlist = playlists.find { it.id == screen.playlistId }
+                                if (playlist != null) {
+                                    MainScreen(
+                                        viewModel = viewModel,
+                                        title = playlist.name,
+                                        songs = playlist.songs,
+                                        onBack = { currentScreen = Screen.PlaylistGrid },
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        onOpenPlayer = { currentScreen = Screen.SongDetail }
+                                    )
+                                }
+                            }
+                            Screen.SongDetail -> {
+                                SongDetailScreen(
+                                    viewModel = viewModel,
+                                    onBack = {
+                                        currentScreen = Screen.PlaylistGrid
+                                    },
+                                    onMenuClick = { scope.launch { drawerState.open() } }
+                                )
+                            }
+                            Screen.CreatePlaylist -> {
+                                CreatePlaylistScreen(
+                                    viewModel = viewModel,
                                     onBack = { currentScreen = Screen.PlaylistGrid },
+                                    onConfirm = { name, songIds ->
+                                        val selectedSongs = songIds.map { id -> viewModel.songs.value.first { it.id == id } }
+                                        viewModel.createPlaylist(name, selectedSongs)
+                                        currentScreen = Screen.PlaylistGrid
+                                    },
+                                    onMenuClick = { scope.launch { drawerState.open() } },
                                     onOpenPlayer = { currentScreen = Screen.SongDetail }
                                 )
                             }
-                        }
-                        Screen.SongDetail -> {
-                            SongDetailScreen(
-                                viewModel = viewModel,
-                                onBack = {
-                                    currentScreen = Screen.PlaylistGrid
-                                }
-                            )
-                        }
-                        Screen.CreatePlaylist -> {
-                            CreatePlaylistScreen(
-                                viewModel = viewModel,
-                                onBack = { currentScreen = Screen.PlaylistGrid },
-                                onConfirm = { name, songIds ->
-                                    val selectedSongs = songIds.map { id -> viewModel.songs.value.first { it.id == id } }
-                                    viewModel.createPlaylist(name, selectedSongs)
-                                    currentScreen = Screen.PlaylistGrid
-                                },
-                                onOpenPlayer = { currentScreen = Screen.SongDetail }
-                            )
                         }
                     }
                 }

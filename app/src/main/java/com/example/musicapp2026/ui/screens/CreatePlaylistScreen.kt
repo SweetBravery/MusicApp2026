@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ fun CreatePlaylistScreen(
     viewModel: MusicViewModel,
     onBack: () -> Unit,
     onConfirm: (String, List<Long>) -> Unit,
+    onMenuClick: () -> Unit,
     onOpenPlayer: () -> Unit
 ) {
     val songs by viewModel.songs.collectAsState()
@@ -36,8 +38,13 @@ fun CreatePlaylistScreen(
             TopAppBar(
                 title = { Text("Nueva Playlist", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Row {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 actions = {

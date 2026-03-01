@@ -46,6 +46,7 @@ fun MainScreen(
     title: String = "Todas las canciones",
     songs: List<Song>? = null,
     onBack: () -> Unit,
+    onMenuClick: () -> Unit,
     onOpenPlayer: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -105,8 +106,13 @@ fun MainScreen(
             TopAppBar(
                 title = { Text(title, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Row {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 actions = {
