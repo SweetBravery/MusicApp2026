@@ -15,6 +15,8 @@ import kotlin.system.exitProcess
 @Composable
 fun MusicAppDrawer(
     drawerState: DrawerState,
+    onSettingsClick: () -> Unit,
+    onInfoClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
     ModalNavigationDrawer(
@@ -32,13 +34,13 @@ fun MusicAppDrawer(
                 NavigationDrawerItem(
                     label = { Text("Configuración") },
                     selected = false,
-                    onClick = { /* TODO */ },
+                    onClick = onSettingsClick,
                     icon = { Icon(Icons.Default.Settings, contentDescription = null) }
                 )
                 NavigationDrawerItem(
                     label = { Text("Información") },
                     selected = false,
-                    onClick = { /* TODO */ },
+                    onClick = onInfoClick,
                     icon = { Icon(Icons.Default.Info, contentDescription = null) }
                 )
                 NavigationDrawerItem(

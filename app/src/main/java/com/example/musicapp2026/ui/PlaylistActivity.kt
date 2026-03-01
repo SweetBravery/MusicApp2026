@@ -11,7 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.musicapp2026.ui.screens.*
+import com.example.musicapp2026.ui.theme.MusicAppTheme
 import com.example.musicapp2026.ui.viewmodel.MusicViewModel
+import com.example.musicapp2026.ui.viewmodel.ThemeViewModel
 import com.example.musicapp2026.ui.viewmodel.PlaylistUiModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -20,29 +22,39 @@ import kotlinx.coroutines.launch
 class PlaylistActivity : ComponentActivity() {
 
     private val viewModel: MusicViewModel by viewModels()
+    private val themeViewModel: ThemeViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         setContent {
-            MaterialTheme {
+            val currentTheme by themeViewModel.currentTheme.collectAsState()
+            
+            MusicAppTheme(themeType = currentTheme) {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
-                
-                MusicAppDrawer(drawerState = drawerState) {
+                var currentScreen by remember { mutableStateOf<Screen>(Screen.PlaylistGrid) }
+                val playlists by viewModel.playlists.collectAsState()
+
+                MusicAppDrawer(
+                    drawerState = drawerState,
+                    onSettingsClick = { 
+                        currentScreen = Screen.Settings
+                        scope.launch { drawerState.close() }
+                    },
+                    onInfoClick = { /* TODO */ }
+                ) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        var currentScreen by remember { mutableStateOf<Screen>(Screen.PlaylistGrid) }
-                        val playlists by viewModel.playlists.collectAsState()
-
                         BackHandler(enabled = currentScreen != Screen.PlaylistGrid) {
                             currentScreen = when (currentScreen) {
                                 is Screen.SongList -> Screen.PlaylistGrid
                                 Screen.SongDetail -> Screen.PlaylistGrid
                                 Screen.CreatePlaylist -> Screen.PlaylistGrid
+                                Screen.Settings -> Screen.PlaylistGrid
                                 else -> Screen.PlaylistGrid
                             }
                         }
@@ -98,6 +110,13 @@ class PlaylistActivity : ComponentActivity() {
                                     onOpenPlayer = { currentScreen = Screen.SongDetail }
                                 )
                             }
+                            Screen.Settings -> {
+                                SettingsScreen(
+                                    themeViewModel = themeViewModel,
+                                    onBack = { currentScreen = Screen.PlaylistGrid },
+                                    onMenuClick = { scope.launch { drawerState.open() } }
+                                )
+                            }
                         }
                     }
                 }
@@ -111,4 +130,5 @@ sealed class Screen {
     data class SongList(val playlistId: Long) : Screen()
     data object SongDetail : Screen()
     data object CreatePlaylist : Screen()
+    data object Settings : Screen()
 }
